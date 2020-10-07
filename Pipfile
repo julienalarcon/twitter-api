@@ -10,6 +10,8 @@ nose = "*"
 [packages]
 flask = "*"
 gunicorn = "*"
+flask-restx = "*"
+importlib-metadata = "~=1.7.0"
 
 [requires]
 python_version = "3.7"
