@@ -12,6 +12,10 @@ flask = "*"
 gunicorn = "*"
 flask-restx = "*"
 importlib-metadata = "~=1.7.0"
+psycopg2-binary = "*"
+flask-sqlalchemy = "*"
+flask-migrate = "*"
+flask-script = "*"
 
 [requires]
 python_version = "3.7"
