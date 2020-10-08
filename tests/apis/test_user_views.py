@@ -2,12 +2,13 @@ from flask_testing import TestCase
 from app import create_app, db
 from app.models import User
 
+
 class TestTweetViews(TestCase):
     # SETUP
     def create_app(self):
         app = create_app()
-        app.config['TESTING'] = True
-        app.config['SQLALCHEMY_DATABASE_URI'] = f"{app.config['SQLALCHEMY_DATABASE_URI']}_test"
+        app.config["TESTING"] = True
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"{app.config['SQLALCHEMY_DATABASE_URI']}_test"
         return app
 
     def setUp(self):
@@ -17,13 +18,10 @@ class TestTweetViews(TestCase):
         db.session.remove()
         db.drop_all()
 
-
     def create_new_user(self):
-        first_user = User(username="test",email="test@test.com")
+        first_user = User(username="test", email="test@test.com")
         db.session.add(first_user)
         db.session.commit()
-
-
 
     # TESTS 'GET'
     def test_get_one_valid_user_api(self):
@@ -47,11 +45,6 @@ class TestTweetViews(TestCase):
         response = self.client.get("/users/1")
         self.assertEqual(response.status_code, 404)
 
-
-
-
-
-
     # TESTS 'POST'
     def test_create_one_valid_user_api(self):
         payload = {
@@ -65,12 +58,10 @@ class TestTweetViews(TestCase):
         self.assertEqual(one_json_user["username"], payload["username"])
         self.assertEqual(one_json_user["email"], payload["email"])
         self.assertEqual(one_json_user["id"], 1)
-        self.assertIsNotNone(one_user) # test that user created in DB
+        self.assertIsNotNone(one_user)  # test that user created in DB
 
     def test_create_one_user_api_invalid_payload(self):
-        payload = {
-            "name": "This is a test"
-        }
+        payload = {"name": "This is a test"}
         response = self.client.post("/users", json=payload)
         one_user = db.session.query(User).get(1)
         self.assertEqual(response.status_code, 400)
@@ -81,10 +72,6 @@ class TestTweetViews(TestCase):
         one_user = db.session.query(User).get(1)
         self.assertEqual(response.status_code, 400)
         self.assertIsNone(one_user)
-
-
-
-
 
     # TESTS 'DELETE '
     def test_delete_one_user_api(self):
@@ -98,16 +85,12 @@ class TestTweetViews(TestCase):
         response = self.client.delete("/users/1")
         self.assertEqual(response.status_code, 404)
 
-
-
-
-
     # TESTS 'PATCH'
     def test_update_one_valid_user_api(self):
         self.create_new_user()
         payload = {
-            "username" : "new-user",
-            "email" : "new-user@new-email.com",
+            "username": "new-user",
+            "email": "new-user@new-email.com",
         }
         response = self.client.patch("/users/1", json=payload)
         one_user = db.session.query(User).get(1)
@@ -118,7 +101,6 @@ class TestTweetViews(TestCase):
         self.assertEqual(one_json_user["email"], payload["email"])
         self.assertEqual(one_user.username, payload["username"])
         self.assertEqual(one_user.email, payload["email"])
-
 
     def test_update_one_tweet_api_empty_payload(self):
         self.create_new_user()
