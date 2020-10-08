@@ -1,6 +1,6 @@
 from flask_testing import TestCase
 from app import create_app, db
-from app.models import Tweet
+from app.models import Tweet, User
 
 class TestTweetViews(TestCase):
     # SETUP
@@ -18,13 +18,20 @@ class TestTweetViews(TestCase):
         db.drop_all()
 
 
+    def create_new_tweet(self):
+        user = User(username="test", email="test@test.com")
+        db.session.add(user)
+        db.session.commit()
+        first_tweet = Tweet(text="First tweet", user_id=user.id)
+        db.session.add(first_tweet)
+        db.session.commit()
+
+
 
 
     # TESTS 'GET'
     def test_get_one_valid_tweet_api(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
-        db.session.commit()
+        self.create_new_tweet()
         response = self.client.get("/tweets/1")
         response_tweet = response.json
         self.assertEqual(response.status_code, 200)
@@ -33,8 +40,7 @@ class TestTweetViews(TestCase):
         self.assertIsNotNone(response_tweet["created_at"])
 
     def test_get_all_tweets_api(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
+        self.create_new_tweet()
         response = self.client.get("/tweets")
         response_list = response.json
         self.assertEqual(response.status_code, 200)
@@ -52,16 +58,23 @@ class TestTweetViews(TestCase):
 
     # TESTS 'POST'
     def test_create_one_valid_tweet_api(self):
+        # Create first a user
+        user = User(username="test", email="test@test.com")
+        db.session.add(user)
+        db.session.commit()
+
         payload = {
-            "text": "This is a test"
+            "text": "This is a test",
+            "user_id": user.id,
         }
+
         response = self.client.post("/tweets", json=payload)
         one_tweet = db.session.query(Tweet).get(1)
         one_json_tweet = response.json
         self.assertEqual(response.status_code, 200)
         self.assertEqual(one_json_tweet["text"], payload["text"])
         self.assertEqual(one_json_tweet["id"], 1)
-        self.assertIsNotNone(one_tweet) # test that tweet not created in DB
+        self.assertIsNotNone(one_tweet) # test that tweet created in DB
 
     def test_create_one_tweet_api_invalid_payload(self):
         payload = {
@@ -79,13 +92,21 @@ class TestTweetViews(TestCase):
         self.assertIsNone(one_tweet)
 
 
+    def test_create_one_tweet_invalid_user(self):
+        payload = {
+            "text": "This is a test",
+            "user_id": 1,
+        }
+        response = self.client.post("/tweets")
+        one_tweet = db.session.query(Tweet).get(1)
+        self.assertEqual(response.status_code, 400)
+        self.assertIsNone(one_tweet)
 
 
 
     # TESTS 'DELETE '
     def test_delete_one_tweet_api(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
+        self.create_new_tweet()
         response = self.client.delete("/tweets/1")
         one_tweet = db.session.query(Tweet).get(1)
         self.assertEqual(response.status_code, 204)
@@ -101,8 +122,7 @@ class TestTweetViews(TestCase):
 
     # TESTS 'PATCH'
     def test_update_one_valid_tweet_api(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
+        self.create_new_tweet()
         payload = {
             "text" : "New text"
         }
@@ -114,17 +134,8 @@ class TestTweetViews(TestCase):
         self.assertEqual(one_json_tweet["id"], 1)
         self.assertEqual(one_tweet.text, payload["text"])
 
-    def test_update_one_tweet_api_invalid_payload(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
-        payload = {
-            "name": "New text"
-        }
-        response = self.client.patch("/tweets/1", json=payload)
-        self.assertEqual(response.status_code, 400)
 
     def test_update_one_tweet_api_empty_payload(self):
-        first_tweet = Tweet(text="First tweet")
-        db.session.add(first_tweet)
+        self.create_new_tweet()
         response = self.client.patch("/tweets/1")
         self.assertEqual(response.status_code, 400)
