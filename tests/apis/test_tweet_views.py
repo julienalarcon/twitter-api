@@ -82,7 +82,7 @@ class TestTweetViews(TestCase):
 
 
 
-    # TESTS 'DELETE'
+    # TESTS 'DELETE '
     def test_delete_one_tweet_api(self):
         first_tweet = Tweet(text="First tweet")
         db.session.add(first_tweet)
