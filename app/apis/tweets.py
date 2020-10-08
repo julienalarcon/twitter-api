@@ -2,8 +2,8 @@
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from app.db import tweet_repository
 from app.models import Tweet
+from app import db
 
 api = Namespace('tweets')
 model = api.model('Tweet',
@@ -25,23 +25,25 @@ class TweetMain(Resource):
     @api.expect(minimum_tweet_field, validate=True)
     def post(self):
         payload = request.json
-        tweet = Tweet(payload["text"])
-        return tweet_repository.add_tweet(tweet), 200
+        tweet = Tweet(text=payload["text"])
+        db.session.add(tweet)
+        db.session.commit()
+        return tweet, 200
 
     @api.doc(responses={200: 'Success'})
     @api.marshal_with(model, as_list=True, code=200)
     def get(self):
-        return tweet_repository.get_all_tweets(), 200
+        return db.session.query(Tweet).all(), 200
 
 
-@api.route('/<int:id>')
+@api.route('/<int:tweet_id>')
 @api.doc(responses={404: 'Tweet not found'})
-@api.param('id', 'The tweet unique identifier')
+@api.param('tweet_id', 'The tweet unique identifier')
 class TweetById(Resource):
     @api.marshal_with(model, code=200)
     @api.doc(responses={200: 'Tweet Found'})
-    def get(self, id):
-        tweet = tweet_repository.get_tweet(id)
+    def get(self, tweet_id):
+        tweet = db.session.query(Tweet).get(tweet_id)
         if tweet is None:
             api.abort(404)
         else:
@@ -50,18 +52,24 @@ class TweetById(Resource):
     @api.marshal_with(model, code=200)
     @api.doc(responses={400: 'Invalid payload', 200: 'Tweet Updated'})
     @api.expect(minimum_tweet_field, validate=True)
-    def patch(self, id):
+    def patch(self, tweet_id):
         payload = request.json
-        tweet = tweet_repository.update_tweet(id, payload["text"])
+        tweet = db.session.query(Tweet).get(tweet_id)
+        tweet.text = payload["text"]
+        db.session.commit()
+
         if tweet is None:
             api.abort(404)
         else:
             return tweet, 200
 
     @api.doc(responses={ 204: 'Tweet Updated'})
-    def delete(self, id):
-        if tweet_repository.get_tweet(id) is None:
+    def delete(self, tweet_id):
+        tweet = db.session.query(Tweet).get(tweet_id)
+
+        if tweet is None:
             api.abort(404)
 
-        tweet_repository.delete_tweet(id)
+        db.session.delete(tweet)
+        db.session.commit()
         return "", 204
