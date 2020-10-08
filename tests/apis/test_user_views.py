@@ -1,108 +1,169 @@
 from flask_testing import TestCase
 from app import create_app, db
 from app.models import User
+from unittest.mock import patch
+
+# Used to get a sample for tests
+def get_sample_user():
+    u = User(username="testuser", id=1, email="testuser@test.com")
+    return u
 
 
-class TestTweetViews(TestCase):
+    def test_get_one_invalid_tweet(self, session_mock):
+        session_mock.query.return_value.get.return_value = None
+        response = self.client.get("/tweets/1")
+        self.assertEqual(response.status_code, 404)
+        session_mock.query.return_value.get.assert_called_once_with(1)
+
+# TESTS 'GET'
+@patch("app.db.session")
+class TestUserGetMethod(TestCase):
     # SETUP
     def create_app(self):
         app = create_app()
         app.config["TESTING"] = True
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"{app.config['SQLALCHEMY_DATABASE_URI']}_test"
         return app
 
-    def setUp(self):
-        db.create_all()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-
-    def create_new_user(self):
-        first_user = User(username="test", email="test@test.com")
-        db.session.add(first_user)
-        db.session.commit()
-
-    # TESTS 'GET'
-    def test_get_one_valid_user_api(self):
-        self.create_new_user()
+    def test_get_one_valid_user(self, session_mock):
+        # Mock
+        session_mock.query.return_value.get.return_value = get_sample_user()
+        # Query
         response = self.client.get("/users/1")
         response_user = response.json
+        # Check
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response_user["id"], 1)
-        self.assertEqual(response_user["username"], "test")
-        self.assertEqual(response_user["email"], "test@test.com")
+        self.assertEqual(response_user["username"], "testuser")
+        self.assertEqual(response_user["email"], "testuser@test.com")
+        session_mock.query.return_value.get.assert_called_once_with(1)
 
-    def test_get_all_users_api(self):
-        self.create_new_user()
+    def test_get_all_users(self, session_mock):
+        # Mock
+        session_mock.query.return_value.all.return_value = [get_sample_user()]
+        # Query
         response = self.client.get("/users")
         response_list = response.json
+        # Check
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response_list, list)
         self.assertEqual(len(response_list), 1)
+        session_mock.query.return_value.all.assert_called_once()
 
-    def test_get_one_invalid_user_api(self):
+    def test_get_one_invalid_user(self, session_mock):
+        # Mock
+        session_mock.query.return_value.get.return_value = None
+        # Query
         response = self.client.get("/users/1")
+        # Check
         self.assertEqual(response.status_code, 404)
+        session_mock.query.return_value.get.assert_called_once_with(1)
 
-    # TESTS 'POST'
-    def test_create_one_valid_user_api(self):
+# TESTS 'POST'
+@patch("app.db.session")
+class TestUserPostMethod(TestCase):
+    # SETUP
+    def create_app(self):
+        app = create_app()
+        app.config["TESTING"] = True
+        return app
+
+    def test_create_one_valid_user(self, session_mock):
+        # Payload
         payload = {
             "username": "test",
             "email": "test@test.com",
         }
+        # Query
         response = self.client.post("/users", json=payload)
-        one_user = db.session.query(User).get(1)
-        one_json_user = response.json
+        response_user = response.json
+        # Check
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(one_json_user["username"], payload["username"])
-        self.assertEqual(one_json_user["email"], payload["email"])
-        self.assertEqual(one_json_user["id"], 1)
-        self.assertIsNotNone(one_user)  # test that user created in DB
+        self.assertEqual(response_user["username"], payload["username"])
+        self.assertEqual(response_user["email"], payload["email"])
+        session_mock.add.assert_called_once()
+        session_mock.commit.assert_called_once()
 
-    def test_create_one_user_api_invalid_payload(self):
+    def test_create_one_user_invalid_payload(self, session_mock):
+        # Payload
         payload = {"name": "This is a test"}
+        # Query
         response = self.client.post("/users", json=payload)
-        one_user = db.session.query(User).get(1)
+        # Check
         self.assertEqual(response.status_code, 400)
-        self.assertIsNone(one_user)
+        session_mock.add.assert_not_called()
+        session_mock.commit.assert_not_called()
 
-    def test_create_one_user_api_empty_payload(self):
+    def test_create_one_user_no_payload(self, session_mock):
+        # Query
         response = self.client.post("/users")
-        one_user = db.session.query(User).get(1)
+        # Check
         self.assertEqual(response.status_code, 400)
-        self.assertIsNone(one_user)
+        session_mock.add.assert_not_called()
+        session_mock.commit.assert_not_called()
 
-    # TESTS 'DELETE '
-    def test_delete_one_user_api(self):
-        self.create_new_user()
+# TESTS 'DELETE'
+@patch("app.db.session")
+class TestUserDeleteMethod(TestCase):
+    # SETUP
+    def create_app(self):
+        app = create_app()
+        app.config["TESTING"] = True
+        return app
+
+    def test_delete_one_user(self, session_mock):
+        # mock
+        session_mock.query.return_value.get.return_value = get_sample_user()
+        # Query
         response = self.client.delete("/users/1")
-        one_user = db.session.query(User).get(1)
+        # Check
         self.assertEqual(response.status_code, 204)
-        self.assertIsNone(one_user)
+        session_mock.query.return_value.get.assert_called_once_with(1)
+        session_mock.delete.assert_called_once()
+        session_mock.commit.assert_called_once()
 
-    def test_delete_one_invalid_user_api(self):
+    def test_delete_one_invalid_user(self, session_mock):
+        # Mock
+        session_mock.query.return_value.get.return_value = None
+        # Query
         response = self.client.delete("/users/1")
+        # Check
         self.assertEqual(response.status_code, 404)
+        session_mock.query.return_value.get.assert_called_once_with(1)
+        session_mock.delete.assert_not_called()
+        session_mock.commit.assert_not_called()
 
-    # TESTS 'PATCH'
-    def test_update_one_valid_user_api(self):
-        self.create_new_user()
+# TESTS 'DELETE'
+@patch("app.db.session")
+class TestUserPatchMethod(TestCase):
+    # SETUP
+    def create_app(self):
+        app = create_app()
+        app.config["TESTING"] = True
+        return app
+
+    def test_update_one_valid_user(self, session_mock):
+        # Mock
+        session_mock.query.return_value.get.return_value = get_sample_user()
+        # Payload
         payload = {
             "username": "new-user",
             "email": "new-user@new-email.com",
         }
+        # Query
         response = self.client.patch("/users/1", json=payload)
-        one_user = db.session.query(User).get(1)
-        one_json_user = response.json
+        response_user = response.json
+        # Check
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(one_json_user["username"], payload["username"])
-        self.assertEqual(one_json_user["id"], 1)
-        self.assertEqual(one_json_user["email"], payload["email"])
-        self.assertEqual(one_user.username, payload["username"])
-        self.assertEqual(one_user.email, payload["email"])
+        self.assertEqual(response_user["username"], payload["username"])
+        self.assertEqual(response_user["id"], 1)
+        self.assertEqual(response_user["email"], payload["email"])
+        session_mock.query.return_value.get.assert_called_once_with(1)
+        session_mock.commit.assert_called_once()
 
-    def test_update_one_tweet_api_empty_payload(self):
-        self.create_new_user()
+    def test_update_one_tweet_no_payload(self, session_mock):
+        # Query
         response = self.client.patch("/users/1")
+        # Check
         self.assertEqual(response.status_code, 400)
+        session_mock.query.return_value.get.assert_not_called()
+        session_mock.commit.assert_not_called()

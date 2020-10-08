@@ -8,6 +8,7 @@ class Tweet(db.Model):
     text = db.Column(db.String(280))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user = db.relationship("User", back_populates="tweets")
 
     def __repr__(self):
         return f"<Tweet #{self.id}>"
@@ -19,7 +20,7 @@ class User(db.Model):
     username = db.Column(db.String(50))
     email = db.Column(db.String(150))
     api_key = db.Column(db.String(30))
-    tweets = db.relationship("Tweet", cascade="all, delete")
+    tweets = db.relationship("Tweet", cascade="all, delete", back_populates="user")
 
     def __repr__(self):
         return f"<User #{self.id}>"

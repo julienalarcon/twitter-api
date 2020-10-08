@@ -6,16 +6,22 @@ from app.models import Tweet, User
 from app import db
 
 api = Namespace("tweets")
+
+class JsonUser(fields.Raw):
+    def format(self, value):
+        return {
+            'username': value.username,
+            'email': value.email,
+            'id' : value.id
+        }
+
 model = api.model(
     "Tweet",
     {
         "id": fields.Integer,
         "text": fields.String,
         "created_at": fields.DateTime,
-        "user": {
-            "user_id": fields.Integer,
-            "url": fields.Url("user-by-id", absolute=True),
-        },
+        "user": JsonUser(),
     },
 )
 
@@ -45,7 +51,8 @@ class TweetMain(Resource):
         payload = request.json
 
         # Check if user exists
-        if db.session.query(User).get(payload["user_id"]) is None:
+        user = db.session.query(User).get(payload["user_id"])
+        if user is None:
             api.abort(400)
 
         tweet = Tweet(text=payload["text"], user_id=payload["user_id"])
